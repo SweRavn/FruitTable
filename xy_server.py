@@ -63,6 +63,13 @@ def set_unit(params, extra_params):
         print("Got unknown unit ('%s'), keeping current ('%s')"%(new_unit, settings['unit']))
     else:
         settings['unit'] = new_unit
+
+def opc(params, extra_params):
+    table = extra_params[0]
+    if table.is_moving():
+        return "0"
+    else:
+        return "1"
         
 def main(argv):
     '''
@@ -88,7 +95,8 @@ def main(argv):
                     # Create all callbacks for the xy-table
 #                    server.set_callback("test", test_cb, error_cb, [])
                     server.set_callback("move:rel", move, error_cb, [table])
-                    server.set_callback("set:scale", set_unit, error_cb, [settings, units])
+                    server.set_callback("set:unit", set_unit, error_cb, [settings, units])
+                    server.set_callback("*opc?", opc, error_cb, [table])
                     server.run()
             except OSError as e:
                 print("I'm too fast, need to remake the server.")

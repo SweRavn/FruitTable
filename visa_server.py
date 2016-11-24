@@ -20,7 +20,24 @@ import select
 from time import sleep
 from visa_socket import Visasocket
 
-# length = 256 # This is the length of a package.
+class Queue:
+    def __init__(self):
+        self.items = []
+
+    def __str__(self):
+        return self.items.__str__()
+    
+    def isEmpty(self):
+        return self.items == []
+
+    def enqueue(self, item):
+        self.items.insert(0,item)
+
+    def dequeue(self):
+        return self.items.pop()
+
+    def size(self):
+        return len(self.items)
 
 class Visaserver:
     """
@@ -76,6 +93,8 @@ class Visaserver:
         """
         print("running run()")
         with self.accept() as self._clientsocket:
+            cmds = Queue()
+            old_partial_cmd = ''
             while True:
                 msg = self._clientsocket.receive()
                 if msg == '':
@@ -83,28 +102,40 @@ class Visaserver:
                     break
                 # Extract command and parameter(s):
                 # FIXME: move this stuff to the server receive function.
-                # Look for '?'
-                res = msg.split(' ')#cmd, param = msg.split(' ')
-                cmd = res[0]
-                cmd = cmd.upper().replace('\n','')
-                print("Got "+cmd)
-                if len(res) > 1:
-                    params = res[1:]
+                # FIXME: first join with old cmd and then split on \n and then take the last cmd
+                msg = old_partial_cmd + msg
+                print(msg)
+                res = msg.split('\n')
+                print(res)
+                old_partial_cmd = res.pop() # Store any partial command for later
+                print(old_partial_cmd)
+                for cmd in res:
+                    cmds.enqueue(cmd)
+                print(cmds)
+                if not cmds.size():
+                    continue
                 else:
-                    params = list()
-                result = list()
-                try:
-                    #FIXME: the callback can take long time, make that call threaded.
-                    print(cmd)
-                    extra_parameters = self._callbacks[cmd][2]
-                    result = self._callbacks[cmd][0](params, extra_parameters)
-                except KeyError as e:
-                    print("vxiserver: Got unknown command", e)
-                else:
-                    if result:
-                        self._clientsocket.send(result)
-                # FIXME: handle network errors some how...?
-                sleep(0.5)
+                    msg = cmds.dequeue()
+                    res = msg.split(' ')#cmd, param = msg.split(' ')
+                    cmd = res[0]
+                    cmd = cmd.upper()#.replace('\n','')
+                    print("Got "+cmd)
+                    if len(res) > 1:
+                        params = res[1:]
+                    else:
+                        params = list()
+                    result = list()
+                    try:
+                        print(cmd)
+                        extra_params = self._callbacks[cmd][2]
+                        result = self._callbacks[cmd][0](params, extra_params)
+                    except KeyError as e:
+                        print("visaserver: Got unknown command", e)
+                    else:
+                        if result:
+                            self._clientsocket.send(result)
+                    # FIXME: handle network errors some how...?
+                    sleep(0.1)
 
     def set_callback(self, command, callback, error_callback, extra_params = []):
         """

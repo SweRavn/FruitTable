@@ -297,6 +297,19 @@ class Xy_table:
     	"""
         stepper.step(numsteps, direction, stepping_style)
 
+    def is_moving(self):
+        '''
+        Return True if any motor is still moving.
+        '''
+        try:
+            self.__stx
+        except:
+            return False
+        else:
+            if self.__stx.is_alive() or self.__sty.is_alive():
+                return True
+        return False
+
     def move_m(self, m_x, m_y):
         '''
         Move m_x, m_y metre.
@@ -310,13 +323,8 @@ class Xy_table:
     	Move staps_x, steps_y steps.
     	'''
         # Check that another move commend is not being executed
-        try:
-            self.__stx
-        except:
-            pass
-        else:
-            if self.__stx.is_alive() or self.__sty.is_alive():
-                raise XyTableWarning('Table is already moving. Move canceled.')
+        if self.is_moving():
+            raise XyTableWarning('Table is already moving. Move canceled.')
 
         x = self._settings['current_x'] + steps_x
         y = self._settings['current_y'] + steps_y
